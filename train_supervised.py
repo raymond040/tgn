@@ -92,6 +92,10 @@ USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
 
+############################
+
+#Saving models
+
 Path("./saved_models/").mkdir(parents=True, exist_ok=True)
 Path("./saved_checkpoints/").mkdir(parents=True, exist_ok=True)
 MODEL_SAVE_PATH = f'./saved_models/{args.prefix}-{args.data}' + '\
