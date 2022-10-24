@@ -4,6 +4,8 @@ import pandas as pd
 from pathlib import Path
 import argparse
 
+HPCFlag = True
+root = './' if HPCFlag else '/workspaces/tgn/'
 
 def preprocess(data_name): #original data: user_id, item_id, timestamp, label, comma-separated-features
   u_list, i_list, ts_list, label_list = [], [], [], []
@@ -59,10 +61,10 @@ def reindex(df, bipartite=True):
 
 def run(data_name, bipartite=True):
   Path("data/").mkdir(parents=True, exist_ok=True)
-  PATH = './data/{}.csv'.format(data_name)
-  OUT_DF = './data/ml_{}.csv'.format(data_name)
-  OUT_FEAT = './data/ml_{}.npy'.format(data_name)
-  OUT_NODE_FEAT = './data/ml_{}_node.npy'.format(data_name)
+  PATH = root + 'data/{}.csv'.format(data_name)
+  OUT_DF = root +'tgn/data/ml_{}.csv'.format(data_name)
+  OUT_FEAT = root + 'tgn/data/ml_{}.npy'.format(data_name)
+  OUT_NODE_FEAT = root + 'tgn/data/ml_{}_node.npy'.format(data_name)
 
   df, feat = preprocess(PATH) #separation of graph structure and node features
   new_df = reindex(df, bipartite)
