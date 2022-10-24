@@ -5,7 +5,7 @@ from pathlib import Path
 import argparse
 
 HPCFlag = True
-root = './' if HPCFlag else '/workspaces/tgn/'
+root = '/home/svu/e0407728/My_FYP/' if HPCFlag else '/workspaces/'
 
 def preprocess(data_name): #original data: user_id, item_id, timestamp, label, comma-separated-features
   u_list, i_list, ts_list, label_list = [], [], [], []
