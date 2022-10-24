@@ -72,8 +72,8 @@ def get_data(dataset_name, different_new_nodes_between_val_and_test=False, rando
 
   random.seed(2020)
 
-  node_set = set(sources) | set(destinations)
-  n_total_unique_nodes = len(node_set)
+  node_set = set(sources) | set(destinations) #get all nodes
+  n_total_unique_nodes = len(node_set) #number node = length
 
   # Compute nodes which appear at test time
   test_node_set = set(sources[timestamps > val_time]).union(
