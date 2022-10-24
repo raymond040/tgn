@@ -65,6 +65,8 @@ parser.add_argument('--n_neg', type=int, default=1)
 parser.add_argument('--use_validation', action='store_true',
                     help='Whether to use a validation set')
 parser.add_argument('--new_node', action='store_true', help='model new node')
+parser.add_argument('--dyrep', action='store_true',
+                    help='Whether to run the dyrep model')
 
 try:
   args = parser.parse_args()
