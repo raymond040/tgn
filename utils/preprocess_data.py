@@ -68,7 +68,7 @@ def reindex(df, bipartite=True):
 
 def run(data_name, bipartite=True):
   Path("data/").mkdir(parents=True, exist_ok=True)
-  PATH = root + 'data/{}.csv'.format(data_name)
+  PATH = root + 'tgn/data/{}.csv'.format(data_name)
   OUT_DF = root +'tgn/data/ml_{}.csv'.format(data_name)
   OUT_FEAT = root + 'tgn/data/ml_{}.npy'.format(data_name)
   OUT_NODE_FEAT = root + 'tgn/data/ml_{}_node.npy'.format(data_name)
