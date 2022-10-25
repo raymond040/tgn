@@ -62,7 +62,7 @@ parser.add_argument('--use_source_embedding_in_message', action='store_true',
                     help='Whether to use the embedding of the source node as part of the message')
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
-parser.add_argument('--hpc_stat', type='int', default=0,
+parser.add_argument('--hpc', type=int, default=0,
                     help='Whether to run in hpc or not')       
 
 
@@ -87,7 +87,7 @@ TIME_DIM = args.time_dim
 USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
-hpc_stat = args.hpc_stat
+hpc_stat = args.hpc
 
 if hpc_stat == 1:
   Path("/home/svu/e0407728/My_FYP/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
