@@ -62,8 +62,8 @@ parser.add_argument('--use_source_embedding_in_message', action='store_true',
                     help='Whether to use the embedding of the source node as part of the message')
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
-parser.add_argument('--hpc', action='store_true',
-                    help='Whether to run in hpc or not') 
+parser.add_argument('--hpc', type='boolean', default=False,
+                    help='Whether to run in hpc or not')       
 
 
 try:
