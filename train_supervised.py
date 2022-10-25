@@ -67,6 +67,8 @@ parser.add_argument('--use_validation', action='store_true',
 parser.add_argument('--new_node', action='store_true', help='model new node')
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
+parser.add_argument('--hpc', action='store_true',
+                    help='Whether to run in hpc or not')              
 
 try:
   args = parser.parse_args()
@@ -94,174 +96,344 @@ USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
 
+
 ############################
 
 #Saving models
 
-Path("/home/svu/e0407728/My_FYP/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
-Path("/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/").mkdir(parents=True, exist_ok=True)
-MODEL_SAVE_PATH = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{args.data}' + '\
-  node-classification.pth'
-get_checkpoint_path = lambda \
-    epoch: f'/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/{args.prefix}-{args.data}-{epoch}' + '\
-  node-classification.pth'
+if args.hpc:
+  Path("/home/svu/e0407728/My_FYP/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
+  Path("/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/").mkdir(parents=True, exist_ok=True)
+  MODEL_SAVE_PATH = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{args.data}' + '\
+    node-classification.pth'
+  get_checkpoint_path = lambda \
+      epoch: f'/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/{args.prefix}-{args.data}-{epoch}' + '\
+    node-classification.pth'
 
-### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('/home/svu/e0407728/My_FYP/tgn/log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
-logger.info(args)
+  ### set up logger
+  logging.basicConfig(level=logging.INFO)
+  logger = logging.getLogger()
+  logger.setLevel(logging.DEBUG)
+  fh = logging.FileHandler('/home/svu/e0407728/My_FYP/tgn/log/{}.log'.format(str(time.time())))
+  fh.setLevel(logging.DEBUG)
+  ch = logging.StreamHandler()
+  ch.setLevel(logging.WARN)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  fh.setFormatter(formatter)
+  ch.setFormatter(formatter)
+  logger.addHandler(fh)
+  logger.addHandler(ch)
+  logger.info(args)
 
-full_data, node_features, edge_features, train_data, val_data, test_data = \
-  get_data_node_classification(DATA, use_validation=args.use_validation)
+  full_data, node_features, edge_features, train_data, val_data, test_data = \
+    get_data_node_classification(DATA, use_validation=args.use_validation)
 
-max_idx = max(full_data.unique_nodes)
+  max_idx = max(full_data.unique_nodes)
 
-train_ngh_finder = get_neighbor_finder(train_data, uniform=UNIFORM, max_node_idx=max_idx)
+  train_ngh_finder = get_neighbor_finder(train_data, uniform=UNIFORM, max_node_idx=max_idx)
 
-# Set device
-device_string = 'cuda:{}'.format(GPU) if torch.cuda.is_available() else 'cpu'
-device = torch.device(device_string)
+  # Set device
+  device_string = 'cuda:{}'.format(GPU) if torch.cuda.is_available() else 'cpu'
+  device = torch.device(device_string)
 
-# Compute time statistics
-mean_time_shift_src, std_time_shift_src, mean_time_shift_dst, std_time_shift_dst = \
-  compute_time_statistics(full_data.sources, full_data.destinations, full_data.timestamps)
+  # Compute time statistics
+  mean_time_shift_src, std_time_shift_src, mean_time_shift_dst, std_time_shift_dst = \
+    compute_time_statistics(full_data.sources, full_data.destinations, full_data.timestamps)
 
-for i in range(args.n_runs):
-  results_path = "/home/svu/e0407728/My_FYP/tgn/results/{}_node_classification_{}.pkl".format(args.prefix,
-                                                                i) if i > 0 else "/home/svu/e0407728/My_FYP/tgn/results/{}_node_classification.pkl".format(
-    args.prefix)
-  Path("/home/svu/e0407728/My_FYP/tgn/results/").mkdir(parents=True, exist_ok=True)
+  for i in range(args.n_runs):
+    results_path = "/home/svu/e0407728/My_FYP/tgn/results/{}_node_classification_{}.pkl".format(args.prefix,
+                                                                  i) if i > 0 else "/home/svu/e0407728/My_FYP/tgn/results/{}_node_classification.pkl".format(
+      args.prefix)
+    Path("/home/svu/e0407728/My_FYP/tgn/results/").mkdir(parents=True, exist_ok=True)
 
-  # Initialize Model
-  tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
-            edge_features=edge_features, device=device,
-            n_layers=NUM_LAYER,
-            n_heads=NUM_HEADS, dropout=DROP_OUT, use_memory=USE_MEMORY,
-            message_dimension=MESSAGE_DIM, memory_dimension=MEMORY_DIM,
-            memory_update_at_start=not args.memory_update_at_end,
-            embedding_module_type=args.embedding_module,
-            message_function=args.message_function,
-            aggregator_type=args.aggregator, n_neighbors=NUM_NEIGHBORS,
-            mean_time_shift_src=mean_time_shift_src, std_time_shift_src=std_time_shift_src,
-            mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
-            use_destination_embedding_in_message=args.use_destination_embedding_in_message,
-            use_source_embedding_in_message=args.use_source_embedding_in_message)
+    # Initialize Model
+    tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
+              edge_features=edge_features, device=device,
+              n_layers=NUM_LAYER,
+              n_heads=NUM_HEADS, dropout=DROP_OUT, use_memory=USE_MEMORY,
+              message_dimension=MESSAGE_DIM, memory_dimension=MEMORY_DIM,
+              memory_update_at_start=not args.memory_update_at_end,
+              embedding_module_type=args.embedding_module,
+              message_function=args.message_function,
+              aggregator_type=args.aggregator, n_neighbors=NUM_NEIGHBORS,
+              mean_time_shift_src=mean_time_shift_src, std_time_shift_src=std_time_shift_src,
+              mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
+              use_destination_embedding_in_message=args.use_destination_embedding_in_message,
+              use_source_embedding_in_message=args.use_source_embedding_in_message)
 
-  tgn = tgn.to(device)
+    tgn = tgn.to(device)
 
-  num_instance = len(train_data.sources)
-  num_batch = math.ceil(num_instance / BATCH_SIZE)
-  
-  logger.debug('Num of training instances: {}'.format(num_instance))
-  logger.debug('Num of batches per epoch: {}'.format(num_batch))
-
-  logger.info('Loading saved TGN model')
-  model_path = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{DATA}.pth'
-  tgn.load_state_dict(torch.load(model_path))
-  tgn.eval()
-  logger.info('TGN models loaded')
-  logger.info('Start training node classification task')
-
-  decoder = MLP(node_features.shape[1], drop=DROP_OUT)
-  decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr)
-  decoder = decoder.to(device)
-  decoder_loss_criterion = torch.nn.BCELoss()
-
-  val_aucs = []
-  train_losses = []
-
-  early_stopper = EarlyStopMonitor(max_round=args.patience)
-  for epoch in range(args.n_epoch):
-    start_epoch = time.time()
+    num_instance = len(train_data.sources)
+    num_batch = math.ceil(num_instance / BATCH_SIZE)
     
-    # Initialize memory of the model at each epoch
-    if USE_MEMORY:
-      tgn.memory.__init_memory__()
+    logger.debug('Num of training instances: {}'.format(num_instance))
+    logger.debug('Num of batches per epoch: {}'.format(num_batch))
 
-    tgn = tgn.eval()
-    decoder = decoder.train()
-    loss = 0
+    logger.info('Loading saved TGN model')
+    model_path = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{DATA}.pth'
+    tgn.load_state_dict(torch.load(model_path))
+    tgn.eval()
+    logger.info('TGN models loaded')
+    logger.info('Start training node classification task')
+
+    decoder = MLP(node_features.shape[1], drop=DROP_OUT)
+    decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr)
+    decoder = decoder.to(device)
+    decoder_loss_criterion = torch.nn.BCELoss()
+
+    val_aucs = []
+    train_losses = []
+
+    early_stopper = EarlyStopMonitor(max_round=args.patience)
+    for epoch in range(args.n_epoch):
+      start_epoch = time.time()
+      
+      # Initialize memory of the model at each epoch
+      if USE_MEMORY:
+        tgn.memory.__init_memory__()
+
+      tgn = tgn.eval()
+      decoder = decoder.train()
+      loss = 0
+      
+      for k in range(num_batch):
+        s_idx = k * BATCH_SIZE
+        e_idx = min(num_instance, s_idx + BATCH_SIZE)
+
+        sources_batch = train_data.sources[s_idx: e_idx]
+        destinations_batch = train_data.destinations[s_idx: e_idx]
+        timestamps_batch = train_data.timestamps[s_idx: e_idx]
+        edge_idxs_batch = full_data.edge_idxs[s_idx: e_idx]
+        labels_batch = train_data.labels[s_idx: e_idx]
+
+        size = len(sources_batch)
+
+        decoder_optimizer.zero_grad()
+        with torch.no_grad():
+          source_embedding, destination_embedding, _ = tgn.compute_temporal_embeddings(sources_batch,
+                                                                                      destinations_batch,
+                                                                                      destinations_batch,
+                                                                                      timestamps_batch,
+                                                                                      edge_idxs_batch,
+                                                                                      NUM_NEIGHBORS)
+
+        labels_batch_torch = torch.from_numpy(labels_batch).float().to(device)
+        pred = decoder(source_embedding).sigmoid()
+        decoder_loss = decoder_loss_criterion(pred, labels_batch_torch)
+        decoder_loss.backward()
+        decoder_optimizer.step()
+        loss += decoder_loss.item()
+      train_losses.append(loss / num_batch)
+
+      val_auc = eval_node_classification(tgn, decoder, val_data, full_data.edge_idxs, BATCH_SIZE,
+                                        n_neighbors=NUM_NEIGHBORS)
+      val_aucs.append(val_auc)
+
+      pickle.dump({
+        "val_aps": val_aucs,
+        "train_losses": train_losses,
+        "epoch_times": [0.0],
+        "new_nodes_val_aps": [],
+      }, open(results_path, "wb"))
+
+      logger.info(f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
     
-    for k in range(num_batch):
-      s_idx = k * BATCH_SIZE
-      e_idx = min(num_instance, s_idx + BATCH_SIZE)
+    if args.use_validation:
+      if early_stopper.early_stop_check(val_auc):
+        logger.info('No improvement over {} epochs, stop training'.format(early_stopper.max_round))
+        break
+      else:
+        torch.save(decoder.state_dict(), get_checkpoint_path(epoch))
 
-      sources_batch = train_data.sources[s_idx: e_idx]
-      destinations_batch = train_data.destinations[s_idx: e_idx]
-      timestamps_batch = train_data.timestamps[s_idx: e_idx]
-      edge_idxs_batch = full_data.edge_idxs[s_idx: e_idx]
-      labels_batch = train_data.labels[s_idx: e_idx]
+    if args.use_validation:
+      logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
+      best_model_path = get_checkpoint_path(early_stopper.best_epoch)
+      decoder.load_state_dict(torch.load(best_model_path))
+      logger.info(f'Loaded the best model at epoch {early_stopper.best_epoch} for inference')
+      decoder.eval()
 
-      size = len(sources_batch)
-
-      decoder_optimizer.zero_grad()
-      with torch.no_grad():
-        source_embedding, destination_embedding, _ = tgn.compute_temporal_embeddings(sources_batch,
-                                                                                     destinations_batch,
-                                                                                     destinations_batch,
-                                                                                     timestamps_batch,
-                                                                                     edge_idxs_batch,
-                                                                                     NUM_NEIGHBORS)
-
-      labels_batch_torch = torch.from_numpy(labels_batch).float().to(device)
-      pred = decoder(source_embedding).sigmoid()
-      decoder_loss = decoder_loss_criterion(pred, labels_batch_torch)
-      decoder_loss.backward()
-      decoder_optimizer.step()
-      loss += decoder_loss.item()
-    train_losses.append(loss / num_batch)
-
-    val_auc = eval_node_classification(tgn, decoder, val_data, full_data.edge_idxs, BATCH_SIZE,
-                                       n_neighbors=NUM_NEIGHBORS)
-    val_aucs.append(val_auc)
-
+      test_auc = eval_node_classification(tgn, decoder, test_data, full_data.edge_idxs, BATCH_SIZE,
+                                          n_neighbors=NUM_NEIGHBORS)
+    else:
+      # If we are not using a validation set, the test performance is just the performance computed
+      # in the last epoch
+      test_auc = val_aucs[-1]
+      
     pickle.dump({
       "val_aps": val_aucs,
+      "test_ap": test_auc,
       "train_losses": train_losses,
       "epoch_times": [0.0],
       "new_nodes_val_aps": [],
+      "new_node_test_ap": 0,
     }, open(results_path, "wb"))
 
-    logger.info(f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
-  
-  if args.use_validation:
-    if early_stopper.early_stop_check(val_auc):
-      logger.info('No improvement over {} epochs, stop training'.format(early_stopper.max_round))
-      break
-    else:
-      torch.save(decoder.state_dict(), get_checkpoint_path(epoch))
+    logger.info(f'test auc: {test_auc}')
+else:
+  Path("/workpaces/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
+  Path("/workspaces/tgn/saved_checkpoints/").mkdir(parents=True, exist_ok=True)
+  MODEL_SAVE_PATH = f'/workspaces/tgn/saved_models/{args.prefix}-{args.data}' + '\
+    node-classification.pth'
+  get_checkpoint_path = lambda \
+      epoch: f'/workspaces/tgn/saved_checkpoints/{args.prefix}-{args.data}-{epoch}' + '\
+    node-classification.pth'
 
-  if args.use_validation:
-    logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
-    best_model_path = get_checkpoint_path(early_stopper.best_epoch)
-    decoder.load_state_dict(torch.load(best_model_path))
-    logger.info(f'Loaded the best model at epoch {early_stopper.best_epoch} for inference')
-    decoder.eval()
+  ### set up logger
+  logging.basicConfig(level=logging.INFO)
+  logger = logging.getLogger()
+  logger.setLevel(logging.DEBUG)
+  fh = logging.FileHandler('/workspaces/tgn/log/{}.log'.format(str(time.time())))
+  fh.setLevel(logging.DEBUG)
+  ch = logging.StreamHandler()
+  ch.setLevel(logging.WARN)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  fh.setFormatter(formatter)
+  ch.setFormatter(formatter)
+  logger.addHandler(fh)
+  logger.addHandler(ch)
+  logger.info(args)
 
-    test_auc = eval_node_classification(tgn, decoder, test_data, full_data.edge_idxs, BATCH_SIZE,
-                                        n_neighbors=NUM_NEIGHBORS)
-  else:
-    # If we are not using a validation set, the test performance is just the performance computed
-    # in the last epoch
-    test_auc = val_aucs[-1]
+  full_data, node_features, edge_features, train_data, val_data, test_data = \
+    get_data_node_classification(DATA, use_validation=args.use_validation)
+
+  max_idx = max(full_data.unique_nodes)
+
+  train_ngh_finder = get_neighbor_finder(train_data, uniform=UNIFORM, max_node_idx=max_idx)
+
+  # Set device
+  device_string = 'cuda:{}'.format(GPU) if torch.cuda.is_available() else 'cpu'
+  device = torch.device(device_string)
+
+  # Compute time statistics
+  mean_time_shift_src, std_time_shift_src, mean_time_shift_dst, std_time_shift_dst = \
+    compute_time_statistics(full_data.sources, full_data.destinations, full_data.timestamps)
+
+  for i in range(args.n_runs):
+    results_path = "/workspaces/tgn/results/{}_node_classification_{}.pkl".format(args.prefix,
+                                                                  i) if i > 0 else "/workspaces/tgn/results/{}_node_classification.pkl".format(
+      args.prefix)
+    Path("/workspaces/tgn/results/").mkdir(parents=True, exist_ok=True)
+
+    # Initialize Model
+    tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
+              edge_features=edge_features, device=device,
+              n_layers=NUM_LAYER,
+              n_heads=NUM_HEADS, dropout=DROP_OUT, use_memory=USE_MEMORY,
+              message_dimension=MESSAGE_DIM, memory_dimension=MEMORY_DIM,
+              memory_update_at_start=not args.memory_update_at_end,
+              embedding_module_type=args.embedding_module,
+              message_function=args.message_function,
+              aggregator_type=args.aggregator, n_neighbors=NUM_NEIGHBORS,
+              mean_time_shift_src=mean_time_shift_src, std_time_shift_src=std_time_shift_src,
+              mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
+              use_destination_embedding_in_message=args.use_destination_embedding_in_message,
+              use_source_embedding_in_message=args.use_source_embedding_in_message)
+
+    tgn = tgn.to(device)
+
+    num_instance = len(train_data.sources)
+    num_batch = math.ceil(num_instance / BATCH_SIZE)
     
-  pickle.dump({
-    "val_aps": val_aucs,
-    "test_ap": test_auc,
-    "train_losses": train_losses,
-    "epoch_times": [0.0],
-    "new_nodes_val_aps": [],
-    "new_node_test_ap": 0,
-  }, open(results_path, "wb"))
+    logger.debug('Num of training instances: {}'.format(num_instance))
+    logger.debug('Num of batches per epoch: {}'.format(num_batch))
 
-  logger.info(f'test auc: {test_auc}')
+    logger.info('Loading saved TGN model')
+    model_path = f'/workspaces/tgn/saved_models/{args.prefix}-{DATA}.pth'
+    tgn.load_state_dict(torch.load(model_path))
+    tgn.eval()
+    logger.info('TGN models loaded')
+    logger.info('Start training node classification task')
+
+    decoder = MLP(node_features.shape[1], drop=DROP_OUT)
+    decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr)
+    decoder = decoder.to(device)
+    decoder_loss_criterion = torch.nn.BCELoss()
+
+    val_aucs = []
+    train_losses = []
+
+    early_stopper = EarlyStopMonitor(max_round=args.patience)
+    for epoch in range(args.n_epoch):
+      start_epoch = time.time()
+      
+      # Initialize memory of the model at each epoch
+      if USE_MEMORY:
+        tgn.memory.__init_memory__()
+
+      tgn = tgn.eval()
+      decoder = decoder.train()
+      loss = 0
+      
+      for k in range(num_batch):
+        s_idx = k * BATCH_SIZE
+        e_idx = min(num_instance, s_idx + BATCH_SIZE)
+
+        sources_batch = train_data.sources[s_idx: e_idx]
+        destinations_batch = train_data.destinations[s_idx: e_idx]
+        timestamps_batch = train_data.timestamps[s_idx: e_idx]
+        edge_idxs_batch = full_data.edge_idxs[s_idx: e_idx]
+        labels_batch = train_data.labels[s_idx: e_idx]
+
+        size = len(sources_batch)
+
+        decoder_optimizer.zero_grad()
+        with torch.no_grad():
+          source_embedding, destination_embedding, _ = tgn.compute_temporal_embeddings(sources_batch,
+                                                                                      destinations_batch,
+                                                                                      destinations_batch,
+                                                                                      timestamps_batch,
+                                                                                      edge_idxs_batch,
+                                                                                      NUM_NEIGHBORS)
+
+        labels_batch_torch = torch.from_numpy(labels_batch).float().to(device)
+        pred = decoder(source_embedding).sigmoid()
+        decoder_loss = decoder_loss_criterion(pred, labels_batch_torch)
+        decoder_loss.backward()
+        decoder_optimizer.step()
+        loss += decoder_loss.item()
+      train_losses.append(loss / num_batch)
+
+      val_auc = eval_node_classification(tgn, decoder, val_data, full_data.edge_idxs, BATCH_SIZE,
+                                        n_neighbors=NUM_NEIGHBORS)
+      val_aucs.append(val_auc)
+
+      pickle.dump({
+        "val_aps": val_aucs,
+        "train_losses": train_losses,
+        "epoch_times": [0.0],
+        "new_nodes_val_aps": [],
+      }, open(results_path, "wb"))
+
+      logger.info(f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
+    
+    if args.use_validation:
+      if early_stopper.early_stop_check(val_auc):
+        logger.info('No improvement over {} epochs, stop training'.format(early_stopper.max_round))
+        break
+      else:
+        torch.save(decoder.state_dict(), get_checkpoint_path(epoch))
+
+    if args.use_validation:
+      logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
+      best_model_path = get_checkpoint_path(early_stopper.best_epoch)
+      decoder.load_state_dict(torch.load(best_model_path))
+      logger.info(f'Loaded the best model at epoch {early_stopper.best_epoch} for inference')
+      decoder.eval()
+
+      test_auc = eval_node_classification(tgn, decoder, test_data, full_data.edge_idxs, BATCH_SIZE,
+                                          n_neighbors=NUM_NEIGHBORS)
+    else:
+      # If we are not using a validation set, the test performance is just the performance computed
+      # in the last epoch
+      test_auc = val_aucs[-1]
+      
+    pickle.dump({
+      "val_aps": val_aucs,
+      "test_ap": test_auc,
+      "train_losses": train_losses,
+      "epoch_times": [0.0],
+      "new_nodes_val_aps": [],
+      "new_node_test_ap": 0,
+    }, open(results_path, "wb"))
+
+    logger.info(f'test auc: {test_auc}')
