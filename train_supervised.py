@@ -67,7 +67,7 @@ parser.add_argument('--use_validation', action='store_true',
 parser.add_argument('--new_node', action='store_true', help='model new node')
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
-parser.add_argument('--hpc', action='store_true',
+parser.add_argument('--hpc', type='boolean', default=False,
                     help='Whether to run in hpc or not')              
 
 try:
