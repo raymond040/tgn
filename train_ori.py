@@ -98,19 +98,19 @@ MEMORY_DIM = args.memory_dim
 
 #Saving models
 
-Path("/home/svu/e0407728/My_FYP/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
-Path("/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/").mkdir(parents=True, exist_ok=True)
-MODEL_SAVE_PATH = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{args.data}' + '\
+Path("./saved_models/").mkdir(parents=True, exist_ok=True)
+Path("./saved_checkpoints/").mkdir(parents=True, exist_ok=True)
+MODEL_SAVE_PATH = f'./saved_models/{args.prefix}-{args.data}' + '\
   node-classification.pth'
 get_checkpoint_path = lambda \
-    epoch: f'/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/{args.prefix}-{args.data}-{epoch}' + '\
+    epoch: f'./saved_checkpoints/{args.prefix}-{args.data}-{epoch}' + '\
   node-classification.pth'
 
 ### set up logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('/home/svu/e0407728/My_FYP/tgn/log/{}.log'.format(str(time.time())))
+fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
 fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.WARN)
@@ -137,10 +137,10 @@ mean_time_shift_src, std_time_shift_src, mean_time_shift_dst, std_time_shift_dst
   compute_time_statistics(full_data.sources, full_data.destinations, full_data.timestamps)
 
 for i in range(args.n_runs):
-  results_path = "/home/svu/e0407728/My_FYP/tgn/results/{}_node_classification_{}.pkl".format(args.prefix,
-                                                                i) if i > 0 else "/home/svu/e0407728/My_FYP/tgn/results/{}_node_classification.pkl".format(
+  results_path = "results/{}_node_classification_{}.pkl".format(args.prefix,
+                                                                i) if i > 0 else "results/{}_node_classification.pkl".format(
     args.prefix)
-  Path("/home/svu/e0407728/My_FYP/tgn/results/").mkdir(parents=True, exist_ok=True)
+  Path("results/").mkdir(parents=True, exist_ok=True)
 
   # Initialize Model
   tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
@@ -166,7 +166,7 @@ for i in range(args.n_runs):
   logger.debug('Num of batches per epoch: {}'.format(num_batch))
 
   logger.info('Loading saved TGN model')
-  model_path = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{DATA}.pth'
+  model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
   tgn.load_state_dict(torch.load(model_path))
   tgn.eval()
   logger.info('TGN models loaded')
