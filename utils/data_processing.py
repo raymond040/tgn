@@ -1,8 +1,9 @@
 import numpy as np
 import random
 import pandas as pd
+from sqlalchemy import true
 
-HPCFlag = False
+HPCFlag = True
 root = '/home/svu/e0407728/My_FYP/' if HPCFlag else  '/workspaces/'
 
 class Data:
