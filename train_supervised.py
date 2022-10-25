@@ -67,7 +67,7 @@ parser.add_argument('--use_validation', action='store_true',
 parser.add_argument('--new_node', action='store_true', help='model new node')
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
-parser.add_argument('--hpc', type='boolean', default=False,
+parser.add_argument('--hpc_stat', type='int', default=0,
                     help='Whether to run in hpc or not')              
 
 try:
@@ -101,7 +101,7 @@ MEMORY_DIM = args.memory_dim
 
 #Saving models
 
-if args.hpc:
+if args.hpc_stat == 1:
   Path("/home/svu/e0407728/My_FYP/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
   Path("/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/").mkdir(parents=True, exist_ok=True)
   MODEL_SAVE_PATH = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{args.data}' + '\
