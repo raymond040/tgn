@@ -95,13 +95,13 @@ TIME_DIM = args.time_dim
 USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
-
+hpc_stat = args.hpc_stat
 
 ############################
 
 #Saving models
 
-if args.hpc_stat == 1:
+if hpc_stat == 1:
   Path("/home/svu/e0407728/My_FYP/tgn/saved_models/").mkdir(parents=True, exist_ok=True)
   Path("/home/svu/e0407728/My_FYP/tgn/saved_checkpoints/").mkdir(parents=True, exist_ok=True)
   MODEL_SAVE_PATH = f'/home/svu/e0407728/My_FYP/tgn/saved_models/{args.prefix}-{args.data}' + '\
